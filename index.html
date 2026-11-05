@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SyntaxGuard – Balanced Parentheses & Syntax Checker</title>
+<style>/* SyntaxGuard – dark developer-tool theme */
+:root{--bg:#0b1020;--panel:#121a30;--line:#25304f;--txt:#e6ebff;--mut:#98a3c7;--a:#7c5cff;--b:#22d3ee;
+  --ok:#22c55e;--bad:#ef4444;--warn:#f59e0b;--grad:linear-gradient(135deg,var(--a),var(--b));
+  --mono:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;color:var(--txt);font:16px/1.6 system-ui,"Segoe UI",Roboto,sans-serif;
+  background:radial-gradient(900px 500px at 10% -10%,#2a1f6b66,transparent),var(--bg)}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--b);outline-offset:2px}
+
+/* Navigation */
+.nav{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;
+  padding:.7rem 5vw;padding-top:calc(.7rem + env(safe-area-inset-top,0px));
+  background:#0b1020d9;backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.brand{font-weight:800;font-size:1.2rem}
+.nav nav{display:flex;gap:1.2rem}
+.nav nav a{color:var(--mut);transition:color .2s}.nav nav a:hover{color:var(--txt)}
+.burger{display:none;background:none;border:0;color:var(--txt);font-size:1.6rem;cursor:pointer}
+
+/* Layout */
+section{max-width:1100px;margin:auto;padding:4rem 5vw 1.5rem;scroll-margin-top:50px}
+h2{font-size:2rem;margin:0 0 .5rem}
+h2::after{content:"";display:block;width:60px;height:4px;border-radius:4px;background:var(--grad);margin-top:.4rem}
+.lead,.sub{color:var(--mut);font-size:1.1rem}
+.hero{text-align:center;padding-top:4.5rem;animation:up .8s both}
+h1{font-size:clamp(2rem,5vw,3.3rem);line-height:1.15;margin:.8rem 0}
+.grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.chip{display:inline-block;margin:0;padding:.25rem .9rem;border:1px solid var(--line);border-radius:99px;color:var(--b);font-size:.85rem}
+.cta{display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap;margin:1.5rem 0}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem;margin-top:1.5rem;text-align:left}
+.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1.1rem}
+.card{font-size:1.6rem;transition:transform .25s,border-color .25s}
+.card:hover{transform:translateY(-4px);border-color:var(--a)}
+.card h3{margin:.2rem 0;font-size:1.1rem}.card p{margin:0;color:var(--mut);font-size:.95rem}
+.foot{text-align:center;color:var(--mut);margin-top:2.5rem}
+
+/* Buttons & inputs */
+.btn,input,select{font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.55rem 1rem}
+.btn{cursor:pointer;transition:transform .2s,border-color .2s}
+.btn:hover{transform:translateY(-2px);border-color:var(--a)}
+.btn.primary,.tab.active{background:var(--grad);border:0;font-weight:600;box-shadow:0 6px 20px #7c5cff55}
+.tabs,.toolbar{display:flex;gap:.6rem;flex-wrap:wrap;margin:1rem 0}
+.toolbar{margin-top:0}
+.toolbar input{flex:1;min-width:140px;font-family:var(--mono)}
+input[type=checkbox]{accent-color:var(--a)}
+
+/* Editor */
+.editor{display:flex;border:1px solid var(--line);border-radius:10px;background:#0a0f1e;overflow:hidden}
+.gutter,textarea{font:14px/22px var(--mono)}
+.gutter{width:3.2rem;flex:none;overflow:hidden;text-align:right;padding:12px 8px;color:#56628a;background:#0d1426;user-select:none}
+.gutter .err{color:#fff;background:var(--bad);border-radius:3px}
+textarea{flex:1;min-width:0;min-height:260px;padding:12px;background:transparent;color:var(--txt);border:0;outline:0;resize:vertical;white-space:pre;overflow:auto}
+textarea::selection{background:#ef4444b0}
+.statusbar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;color:var(--mut);font-size:.9rem;margin-top:.6rem}
+
+/* Result card */
+.result{display:flex;gap:1rem;margin-top:1.2rem;padding:1.2rem;border-radius:14px;border:1px solid;animation:up .4s both}
+.result.ok{border-color:var(--ok);background:#22c55e14}
+.result.bad{border-color:var(--bad);background:#ef444414}
+.result.warn{border-color:var(--warn);background:#f59e0b14}
+.result>div:last-child{min-width:0;flex:1}
+.result h3{margin:0 0 .3rem;font-size:1.3rem}.result ul{margin:.3rem 0 .8rem;padding-left:1.2rem}
+.ico{font-size:2rem}.hidden{display:none}
+.meta{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+.meta span{background:#0a0f1e;border:1px solid var(--line);border-radius:8px;padding:.1rem .6rem;font-size:.9rem}
+.snip,pre{background:#0a0f1e;padding:.7rem;border-radius:8px;font:14px/1.6 var(--mono);overflow-x:auto;white-space:pre;margin:.5rem 0}
+mark{background:var(--bad);color:#fff;border-radius:3px;padding:0 2px}
+.fix{border-left:3px solid var(--b);padding-left:.7rem}
+
+/* Stack visualization */
+.vizgrid{display:grid;grid-template-columns:200px 1fr;gap:1.2rem}
+.stackbox{display:flex;flex-direction:column;align-items:center}
+.stack{display:flex;flex-direction:column-reverse;min-height:260px;width:100%;gap:6px;padding:6px;
+  border:2px solid var(--b);border-top:0;border-radius:0 0 12px 12px}
+.item{padding:.45rem;text-align:center;border-radius:8px;background:var(--grad);font:700 1.1rem var(--mono);overflow:hidden;text-overflow:ellipsis}
+.item.push{animation:push .4s}.item.pop{animation:pop .5s forwards}.item.bad{background:var(--bad);animation:shake .4s}
+.base{color:var(--mut);font-size:.85rem;margin-top:.4rem}
+.log{margin:0;padding-left:1.5rem;max-height:300px;overflow:auto}
+.log li{padding:.1rem 0}.log .push{color:#b9a8ff}.log .pop{color:var(--b)}.log .skip{color:var(--mut)}
+.log .error{color:var(--bad)}.log .end{color:var(--ok);font-weight:600}
+.status{margin-top:1rem;font-weight:600}.status.ok{color:var(--ok)}.status.bad{color:var(--bad)}
+
+/* Tables */
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:.6rem;text-align:left;border-bottom:1px solid var(--line)}
+tbody tr{cursor:pointer;transition:background .2s}tbody tr:hover{background:#7c5cff22}
+td code{font-family:var(--mono);color:var(--b)}
+.pass{color:var(--ok)}.fail{color:var(--bad)}
+
+@keyframes push{from{transform:translateY(-70px);opacity:0}}
+@keyframes pop{to{transform:translateY(-70px);opacity:0}}
+@keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+@keyframes up{from{opacity:0;transform:translateY(14px)}}
+@media(max-width:720px){
+  .burger{display:block}
+  .nav nav{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;background:var(--panel);padding:1rem 5vw}
+  .nav nav.open{display:flex}
+  .vizgrid{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="nav">
+  <a class="brand" href="#home">🛡️ SyntaxGuard</a>
+  <button class="burger" id="burger" aria-label="Toggle menu">☰</button>
+  <nav id="menu">
+    <a href="#home">Home</a><a href="#checker">Syntax Checker</a><a href="#stack">Stack Visualization</a>
+    <a href="#how">How It Works</a><a href="#tests">Test Cases</a><a href="#about">About Project</a>
+  </nav>
+</header>
+
+<main>
+<!-- 1. HOME -->
+<section id="home" class="hero">
+  <p class="chip">DSA Project · Stack (LIFO)</p>
+  <h1><span class="grad">SyntaxGuard</span> – Balanced Parentheses &amp; Syntax Checker</h1>
+  <p class="sub">An intelligent syntax validation tool powered by Stack Data Structure.</p>
+  <div class="cta">
+    <a class="btn primary" href="#checker">⚡ Check my code</a>
+    <a class="btn" href="#stack">📚 Watch the stack work</a>
+  </div>
+  <div class="features">
+    <div class="card">🔢<h3>Brackets</h3><p>( ) [ ] { } checked for matching type and order.</p></div>
+    <div class="card">🏷️<h3>HTML / XML</h3><p>Nested, self-closing and void tags, comments ignored.</p></div>
+    <div class="card">📍<h3>Exact errors</h3><p>Line, column, mismatch type and a suggested fix.</p></div>
+    <div class="card">🎬<h3>Live stack</h3><p>Animated push and pop, step by step.</p></div>
+  </div>
+</section>
+
+<!-- 2. SYNTAX CHECKER -->
+<section id="checker">
+  <h2>Syntax Checker</h2>
+  <div class="tabs">
+    <button class="btn tab active" data-mode="brackets">( ) [ ] { } Brackets</button>
+    <button class="btn tab" data-mode="tags">&lt;/&gt; HTML / XML tags</button>
+  </div>
+  <div class="panel">
+    <div class="toolbar">
+      <button class="btn" id="sampleBtn">✨ Sample code</button>
+      <button class="btn" id="clearBtn">🗑️ Clear</button>
+      <button class="btn primary" id="validateBtn">▶ Validate</button>
+    </div>
+    <div class="editor">
+      <div class="gutter" id="gutter"></div>
+      <textarea id="code" spellcheck="false" wrap="off" placeholder="Paste or type your code here…"></textarea>
+    </div>
+    <div class="statusbar">
+      <span id="count">0 characters · 1 line</span>
+      <label><input type="checkbox" id="skipLit"> Ignore strings &amp; comments</label>
+    </div>
+  </div>
+  <div id="result" class="result hidden" aria-live="polite"></div>
+</section>
+
+<!-- 3. STACK VISUALIZATION -->
+<section id="stack">
+  <h2>How Stack Works</h2>
+  <p class="lead">Opening symbols are pushed. A closing symbol pops the top and must match it.</p>
+  <div class="panel">
+    <div class="toolbar">
+      <input id="vizInput" value="{[()]}" maxlength="300" aria-label="Input to visualize">
+      <select id="vizMode" aria-label="Mode"><option value="brackets">Brackets</option><option value="tags">HTML tags</option></select>
+      <button class="btn primary" id="vizPlay">▶ Play</button>
+      <button class="btn" id="vizStep">⏭ Step</button>
+      <button class="btn" id="vizReset">↺ Reset</button>
+    </div>
+    <div class="vizgrid">
+      <div class="stackbox"><div class="stack" id="stackView"></div><div class="base">STACK · top ↑</div></div>
+      <ol class="log" id="log"></ol>
+    </div>
+    <div class="status" id="vizStatus">Press Play or Step to start.</div>
+  </div>
+</section>
+
+<!-- 4. HOW IT WORKS -->
+<section id="how">
+  <h2>How It Works</h2>
+  <p class="lead">A stack is LIFO (Last In, First Out): the most recently opened bracket must be the first one closed.</p>
+  <div class="panel">
+<pre>1. Create an empty stack.
+2. Read the input one character (or tag) at a time.
+3. Opening bracket  → push it onto the stack.
+4. Closing bracket:
+     a. stack empty?        → error: unexpected closing bracket
+     b. else pop the top and compare its type
+5. Types differ?            → error: report the FIRST mismatch
+6. After the last character, stack not empty?
+                            → error: unclosed opening bracket
+7. Stack empty and no error → BALANCED</pre>
+  </div>
+  <div class="features">
+    <div class="card">⏱️<h3>Time: O(n)</h3><p>Each character is visited once; push and pop are O(1).</p></div>
+    <div class="card">💾<h3>Space: O(n)</h3><p>Worst case, every character is an opening bracket on the stack.</p></div>
+    <div class="card">🏷️<h3>Tags</h3><p>Same idea: push &lt;name&gt;, and a closing &lt;/name&gt; must match the top. Void tags (img, br, hr, input, meta…) are never pushed.</p></div>
+  </div>
+</section>
+
+<!-- 5. TEST CASES -->
+<section id="tests">
+  <h2>Test Cases</h2>
+  <p class="lead">Click a row to load it into the editor and validate it.</p>
+  <div class="panel">
+    <div class="toolbar"><button class="btn primary" id="runAll">✔ Run all tests</button></div>
+    <div class="scroll"><table><thead><tr><th>Input</th><th>Mode</th><th>Expected</th><th>Actual</th></tr></thead><tbody id="testBody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- 6. ABOUT -->
+<section id="about">
+  <h2>About Project</h2>
+  <div class="features">
+    <div class="card">🎯<h3>Objective</h3><p>Show a practical use of the Stack data structure by validating brackets and HTML/XML tags.</p></div>
+    <div class="card">🧰<h3>Technology</h3><p>HTML5, CSS3 and vanilla JavaScript. No backend, no external APIs.</p></div>
+    <div class="card">🧠<h3>DSA concepts</h3><p>Stack ADT, LIFO, push/pop/peek, linear scan, O(n) time and space.</p></div>
+  </div>
+  <p class="foot">SyntaxGuard · College DSA Assignment</p>
+</section>
+</main>
+<script>/* SyntaxGuard – Balanced Parentheses & Syntax Checker
+   Part 1: DSA core (Stack + validators, no DOM)   Part 2: user interface */
+'use strict';
+
+/* ================= PART 1: DSA CORE ================= */
+
+// Stack ADT (LIFO). Backed by an array; push/pop/peek are all O(1).
+class Stack {
+  constructor() { this.items = []; }
+  push(x)   { this.items.push(x); }
+  pop()     { return this.items.pop(); }
+  peek()    { return this.items[this.items.length - 1]; }
+  isEmpty() { return this.items.length === 0; }
+  snapshot() { return this.items.map(i => i.label); }   // copy of contents, for the visualizer
+}
+
+const CLOSE_OF = { '(': ')', '[': ']', '{': '}' };        // opening → expected closing
+const OPEN_OF  = { ')': '(', ']': '[', '}': '{' };        // closing → required opening
+const VOID_TAGS = new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
+
+// Convert a character index into 1-based line/column numbers.
+function posAt(text, index) {
+  const lines = text.slice(0, index).split('\n');
+  return { line: lines.length, col: lines[lines.length - 1].length + 1 };
+}
+
+// Record the error as a visualizer step and build the failed result.
+function fail(steps, stack, error) {
+  steps.push({ action: 'error', stack: stack.snapshot(), msg: '✖ ' + error.message });
+  return { valid: false, error, steps };
+}
+
+// Called after the scan: a non-empty stack means something was never closed.
+function finish(stack, steps, type) {
+  if (stack.isEmpty()) {
+    steps.push({ action: 'end', stack: [], msg: 'Stack becomes empty → Balanced!' });
+    return { valid: true, steps };
+  }
+  const t = stack.peek(), n = stack.items.length;
+  return fail(steps, stack, {
+    type, line: t.line, col: t.col, index: t.index, length: t.length,
+    message: `'${t.label}' is opened but never closed${n > 1 ? ` (${n} unclosed in total)` : ''}.`,
+    fix: `Add ${t.close} to close it.`
+  });
+}
+
+/* Bracket validation – the classic stack algorithm.
+   skipLiterals: ignore brackets inside "strings", 'strings', `templates`, // and slash-star comments. */
+function validateBrackets(text, skipLiterals = false) {
+  const stack = new Stack(), steps = [];
+  let i = 0, line = 1, col = 1;
+  const advance = () => { if (text[i] === '\n') { line++; col = 1; } else col++; i++; };
+
+  while (i < text.length) {
+    const ch = text[i];
+
+    if (skipLiterals) {                                    // optional: jump over strings/comments
+      if (ch === '/' && text[i + 1] === '/') { while (i < text.length && text[i] !== '\n') advance(); continue; }
+      if (ch === '/' && text[i + 1] === '*') {
+        advance(); advance();
+        while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) advance();
+        if (i < text.length) { advance(); advance(); }
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === '`') {
+        advance();
+        while (i < text.length && text[i] !== ch && (ch === '`' || text[i] !== '\n')) {
+          if (text[i] === '\\') advance();
+          if (i < text.length) advance();
+        }
+        if (text[i] === ch) advance();
+        continue;
+      }
+    }
+
+    if (CLOSE_OF[ch]) {                                    // opening bracket → PUSH
+      stack.push({ label: ch, close: `'${CLOSE_OF[ch]}'`, index: i, line, col, length: 1 });
+      steps.push({ action: 'push', stack: stack.snapshot(), msg: `Read '${ch}' → Push onto stack.` });
+    } else if (OPEN_OF[ch]) {                              // closing bracket → check + POP
+      const where = { line, col, index: i, length: 1 };
+      if (stack.isEmpty()) {
+        return fail(steps, stack, { ...where, type: 'Unexpected closing bracket',
+          message: `Closing '${ch}' has no matching opening bracket.`,
+          fix: `Remove this '${ch}' or add '${OPEN_OF[ch]}' before it.` });
+      }
+      const top = stack.peek();
+      if (top.label !== OPEN_OF[ch]) {                     // wrong type → first mismatch
+        return fail(steps, stack, { ...where, type: 'Mismatched bracket type',
+          message: `Expected ${top.close} to close '${top.label}' (line ${top.line}, col ${top.col}) but found '${ch}'.`,
+          fix: `Change '${ch}' to ${top.close}, or close the inner brackets first.` });
+      }
+      stack.pop();
+      steps.push({ action: 'pop', popped: top.label, stack: stack.snapshot(), msg: `Read '${ch}' → Pop '${top.label}'.` });
+    }
+    advance();
+  }
+  return finish(stack, steps, 'Missing closing bracket');
+}
+
+/* HTML/XML tag validation – same stack idea, but items are tag names.
+   Comments are ignored; void and self-closing tags are never pushed. */
+function validateTags(text) {
+  const stack = new Stack(), steps = [];
+  const re = /<!--[\s\S]*?-->|<(\/?)([A-Za-z][\w:.-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
+  let m;
+  while ((m = re.exec(text))) {
+    if (!m[2]) continue;                                   // it was a comment
+    const tag = m[0], closing = m[1] === '/', name = m[2].toLowerCase();
+    const p = posAt(text, m.index);
+    const where = { line: p.line, col: p.col, index: m.index, length: tag.length };
+
+    if (!closing) {
+      if (VOID_TAGS.has(name) || m[3].trim().endsWith('/')) {
+        steps.push({ action: 'skip', stack: stack.snapshot(), msg: `Read ${tag} → void/self-closing, nothing to push.` });
+      } else {                                             // opening tag → PUSH
+        stack.push({ label: `<${name}>`, name, close: `</${name}>`, ...where });
+        steps.push({ action: 'push', stack: stack.snapshot(), msg: `Read <${name}> → Push onto stack.` });
+      }
+      continue;
+    }
+    if (stack.isEmpty()) {                                 // closing tag → check + POP
+      return fail(steps, stack, { ...where, type: 'Unexpected closing tag',
+        message: `Closing tag </${name}> has no open tag.`,
+        fix: `Remove </${name}> or add <${name}> before it.` });
+    }
+    const top = stack.peek();
+    if (top.name !== name) {
+      const nested = stack.items.some(t => t.name === name);
+      return fail(steps, stack, { ...where, type: nested ? 'Incorrectly nested HTML tags' : 'Mismatched HTML tag',
+        message: `Expected </${top.name}> but found </${name}>.`,
+        fix: nested ? `Close <${top.name}> (line ${top.line}, col ${top.col}) before closing <${name}>.`
+                    : `Change </${name}> to </${top.name}>, or remove it.` });
+    }
+    stack.pop();
+    steps.push({ action: 'pop', popped: top.label, stack: stack.snapshot(), msg: `Read </${name}> → Pop <${name}>.` });
+  }
+  return finish(stack, steps, 'Unclosed HTML tag');
+}
+
+// Single entry point used by the UI. Empty input never crashes.
+function run(text, mode, skip) {
+  if (!text || !text.trim()) return { empty: true };
+  return mode === 'tags' ? validateTags(text) : validateBrackets(text, skip);
+}
+
+if (typeof module !== 'undefined') module.exports = { Stack, validateBrackets, validateTags, run };
+
+/* ================= PART 2: USER INTERFACE ================= */
+const TESTS = [
+  ['(a+b)', 'brackets', true], ['{[()]}', 'brackets', true], ['([)]', 'brackets', false],
+  ['((a+b)', 'brackets', false], ['{a+b]}', 'brackets', false], ['[]{}()', 'brackets', true],
+  ['<div><p>Hello</p></div>', 'tags', true], ['<html><body></body></html>', 'tags', true],
+  ['<div><p></div></p>', 'tags', false], ['<div><img src="a.png"><br/><!-- <b> --></div>', 'tags', true]
+];
+const SAMPLES = {
+  brackets: ['function add(a, b) {\n  const list = [a, b, (a + b)];\n  return list[2];\n}',
+             'function add(a, b) {\n  const list = [a, b, (a + b];\n  return list[2];\n}'],
+  tags: ['<div class="box">\n  <p>Hello <b>world</b></p>\n  <img src="a.png">\n</div>',
+         '<div>\n  <p>Hello <b>world</p></b>\n</div>']
+};
+let mode = 'brackets', sampleIdx = 0;
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---- Editor helpers ---- */
+function drawEditor(errLine) {                              // line-number gutter + character count
+  const ta = $('code'), n = ta.value.split('\n').length;
+  $('gutter').innerHTML = Array.from({ length: n }, (_, i) => `<div${i + 1 === errLine ? ' class="err"' : ''}>${i + 1}</div>`).join('');
+  $('gutter').scrollTop = ta.scrollTop;
+  $('count').textContent = `${ta.value.length} characters · ${n} line${n > 1 ? 's' : ''}`;
+}
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === m));
+  $('skipLit').parentElement.style.display = m === 'tags' ? 'none' : '';
+  $('code').placeholder = m === 'tags' ? 'Paste HTML/XML here, e.g. <div><p>Hello</p></div>' : 'Paste code here, e.g. {[()]}';
+  $('result').classList.add('hidden');
+  sampleIdx = 0; drawEditor();
+}
+
+/* ---- Result card ---- */
+function showResult(r, text) {
+  const box = $('result'), what = mode === 'tags' ? 'tags' : 'brackets';
+  box.classList.remove('hidden');
+  if (r.empty) {
+    box.className = 'result warn';
+    box.innerHTML = '<div class="ico">⚠️</div><div><h3>Nothing to validate</h3><p>Type or paste some code, or press “Sample code”.</p></div>';
+    return;
+  }
+  if (r.valid) {
+    const pairs = r.steps.filter(s => s.action === 'pop').length;
+    box.className = 'result ok';
+    box.innerHTML = `<div class="ico">✅</div><div><h3>Syntax Balanced!</h3>
+      <ul><li>All ${what} matched (${pairs} pair${pairs === 1 ? '' : 's'})</li><li>Stack is empty at the end</li></ul>
+      <button class="btn" id="vizBtn">🎬 Visualize this</button></div>`;
+  } else {
+    const e = r.error, ln = text.split('\n')[e.line - 1] || '';
+    const len = Math.max(1, Math.min(e.length, ln.length - e.col + 1));
+    box.className = 'result bad';
+    box.innerHTML = `<div class="ico">❌</div><div><h3>Syntax Error Detected!</h3>
+      <div class="meta"><span>Type: ${esc(e.type)}</span><span>Line ${e.line}</span><span>Column ${e.col}</span></div>
+      <p>${esc(e.message)}</p>
+      <div class="snip">${esc(ln.slice(0, e.col - 1))}<mark>${esc(ln.substr(e.col - 1, len))}</mark>${esc(ln.slice(e.col - 1 + len))}</div>
+      <p class="fix">💡 <b>How to fix:</b> ${esc(e.fix)}</p>
+      <button class="btn" id="vizBtn">🎬 Visualize this</button></div>`;
+  }
+  $('vizBtn').onclick = () => {
+    $('vizInput').value = text.replace(/\s+/g, ' ').slice(0, 300);
+    $('vizMode').value = mode; loadViz(); $('stack').scrollIntoView(); playViz();
+  };
+}
+
+function validate() {
+  const ta = $('code'), text = ta.value, r = run(text, mode, $('skipLit').checked);
+  showResult(r, text);
+  if (r.error) {                                            // highlight the error inside the editor
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(r.error.index, r.error.index + r.error.length);
+    ta.scrollTop = Math.max(0, (r.error.line - 3) * 22);
+  }
+  drawEditor(r.error && r.error.line);
+}
+
+/* ---- Stack visualizer ---- */
+let steps = [], pos = -1, timer = null;
+
+function loadViz() {
+  stopViz();
+  const r = run($('vizInput').value, $('vizMode').value, false);
+  steps = r.empty ? [] : r.steps; pos = -1;
+  $('stackView').innerHTML = ''; $('log').innerHTML = '';
+  $('vizStatus').className = 'status';
+  $('vizStatus').textContent = r.empty ? 'Enter some input first.' : steps.length ? 'Press Play or Step to start.' : 'No brackets or tags found.';
+}
+
+function stepViz() {
+  if (pos >= steps.length - 1) { stopViz(); return; }
+  const s = steps[++pos], view = $('stackView');
+  view.innerHTML = s.stack.map((l, k) => {
+    const top = k === s.stack.length - 1;
+    return `<div class="item${top && s.action === 'push' ? ' push' : ''}${top && s.action === 'error' ? ' bad' : ''}">${esc(l)}</div>`;
+  }).join('');
+  if (s.popped) {                                           // ghost element animates the pop
+    const g = document.createElement('div');
+    g.className = 'item pop'; g.textContent = s.popped;
+    g.onanimationend = () => g.remove(); view.appendChild(g);
+  }
+  const li = document.createElement('li');
+  li.className = s.action; li.textContent = s.msg; $('log').appendChild(li); li.scrollIntoView({ block: 'nearest' });
+  const st = $('vizStatus');
+  if (s.action === 'end') { st.className = 'status ok'; st.textContent = '✔ Stack is empty → Balanced!'; }
+  if (s.action === 'error') { st.className = 'status bad'; st.textContent = '✖ ' + s.msg.slice(2); }
+  if (pos >= steps.length - 1) stopViz();
+}
+
+function stopViz() { clearInterval(timer); timer = null; $('vizPlay').textContent = '▶ Play'; }
+function playViz() {
+  if (timer) { stopViz(); return; }                         // Play doubles as Pause
+  if (pos >= steps.length - 1) loadViz();
+  if (!steps.length) return;
+  $('vizPlay').textContent = '⏸ Pause';
+  stepViz(); timer = setInterval(stepViz, 900);
+}
+
+/* ---- Test cases ---- */
+function renderTests() {
+  $('testBody').innerHTML = TESTS.map((t, i) => `<tr data-i="${i}"><td><code>${esc(t[0])}</code></td>
+    <td>${t[1] === 'tags' ? 'HTML' : 'Brackets'}</td><td>${t[2] ? 'Balanced' : 'Not Balanced'}</td><td id="t${i}">–</td></tr>`).join('');
+  $('testBody').onclick = e => {
+    const row = e.target.closest('tr'); if (!row) return;
+    const t = TESTS[row.dataset.i];
+    setMode(t[1]); $('code').value = t[0]; validate(); $('checker').scrollIntoView();
+  };
+}
+function runAllTests() {
+  TESTS.forEach((t, i) => {
+    const actual = run(t[0], t[1], false).valid, cell = $('t' + i);
+    cell.className = actual === t[2] ? 'pass' : 'fail';
+    cell.textContent = (actual ? 'Balanced' : 'Not Balanced') + (actual === t[2] ? ' ✔' : ' ✘');
+  });
+}
+
+/* ---- Wire everything up ---- */
+function init() {
+  const ta = $('code');
+  ta.addEventListener('input', () => drawEditor());
+  ta.addEventListener('scroll', () => { $('gutter').scrollTop = ta.scrollTop; });
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => setMode(t.dataset.mode));
+  $('validateBtn').onclick = validate;
+  $('clearBtn').onclick = () => { ta.value = ''; $('result').classList.add('hidden'); drawEditor(); ta.focus(); };
+  $('sampleBtn').onclick = () => { ta.value = SAMPLES[mode][sampleIdx++ % 2]; drawEditor(); validate(); };
+  $('vizPlay').onclick = playViz; $('vizStep').onclick = () => { stopViz(); stepViz(); };
+  $('vizReset').onclick = loadViz; $('vizMode').onchange = loadViz; $('vizInput').oninput = loadViz;
+  $('runAll').onclick = runAllTests;
+  $('burger').onclick = () => $('menu').classList.toggle('open');
+  $('menu').onclick = () => $('menu').classList.remove('open');
+  renderTests(); setMode('brackets'); loadViz();
+}
+if (typeof document !== 'undefined') init();
+</script>
+</body>
+</html>
